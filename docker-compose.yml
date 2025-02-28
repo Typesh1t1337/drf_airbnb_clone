@@ -1,0 +1,81 @@
+
+services:
+  backend:
+    container_name: airbnb_backend
+    build:
+      context: .
+    volumes:
+      - .:/usr/src/app
+    env_file:
+      - .env
+    command: python manage.py runserver 0.0.0.0:8000
+    ports:
+      - 8001:8000
+    entrypoint: ["sh","/usr/src/app/entrypoint.sh"]
+    depends_on:
+      - cache
+      - db
+    networks:
+      - default
+
+
+
+  cache:
+    container_name: airbnb_redis
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - cache_data:/data
+    networks:
+      - default
+
+  db:
+    container_name: airbnb_postgres
+    image: postgres:14
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: airbnb_postgres
+      POSTGRES_PASSWORD: root
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - default
+
+  celery:
+    container_name: airbnb_celery
+    build:
+      context: .
+    volumes:
+      - .:/usr/src/app/
+    command: celery -A airbnb worker --loglevel=info
+    entrypoint: ["sh","/usr/src/app/entrypoint.sh"]
+    depends_on:
+      - cache
+      - db
+    networks:
+      - default
+
+  aws:
+    container_name: airbnb_minio
+    image: quay.io/minio/minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER: airbnb
+      MINIO_ROOT_PASSWORD: airbnb_123
+    command: server /data --console-address ":9001"
+
+volumes:
+  db_data:
+  cache_data:
+  minio_data:
+
+networks:
+  default:
+    driver: bridge
