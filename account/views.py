@@ -1,12 +1,12 @@
 from django.contrib.auth import authenticate
 from django.core.cache import cache
-from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .serializer import *
+from .tasks import email_verification
 
 class RegisterView(APIView):
     permission_classes = (AllowAny,)
@@ -15,21 +15,12 @@ class RegisterView(APIView):
         serializer = UserRegisterSerializer(data=request.data)
 
         if serializer.is_valid():
-            username = serializer.data.get('username', '')
-            email = serializer.data.get('email', '')
-            first_name = serializer.data.get('first_name', '')
-            last_name = serializer.data.get('last_name', '')
-            password = serializer.data.get('password', '')
-
-            if get_user_model().objects.filter(username=username).exists():
-                return Response({
-                    'error': 'Username already exists'
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            if get_user_model().objects.filter(email=email).exists():
-                return Response({
-                    'error': 'Email already exists'
-                }, status=status.HTTP_400_BAD_REQUEST)
+            validated_data = serializer.validated_data
+            username = validated_data['username']
+            email = validated_data['email']
+            first_name = validated_data['first_name']
+            last_name = validated_data['last_name']
+            password = validated_data['password']
 
 
             user = get_user_model().objects.create_user(
@@ -38,6 +29,9 @@ class RegisterView(APIView):
                 last_name=last_name,
                 email=email,
                 password=password)
+
+
+            email_verification.delay(email=user.email)
 
             refresh = RefreshToken.for_user(user)
             access = str(refresh.access_token)
@@ -101,10 +95,9 @@ class UserInfoView(APIView):
         serializer = UserInfoSerializer(user).data
 
         if data:
-            return Response(data,status=status.HTTP_200_OK)
+            return Response(data, status=status.HTTP_200_OK)
 
         cache.set(cache_key, serializer)
 
         return Response(serializer, status=status.HTTP_200_OK)
-
 

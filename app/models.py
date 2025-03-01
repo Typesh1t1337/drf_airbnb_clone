@@ -14,7 +14,7 @@ class Housing(models.Model):
     city = models.CharField(max_length=100)
     country = models.CharField(max_length=100)
     rated_people = models.IntegerField(default=0)
-    rating_amount = models.IntegerField(default=0)
+    rating_amount = models.FloatField(default=0)
     price = models.IntegerField(default=0)
     option = models.CharField(choices=(
         ('Per day', 'per day'), ('Per week', 'per week'), ('Per month', 'per month'),
@@ -29,6 +29,7 @@ class HousingPhotos(models.Model):
     housing = models.ForeignKey(Housing, on_delete=models.CASCADE)
     photo = models.ImageField(upload_to=upload_location, null=False, blank=False, validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])], storage=HousingStorage())
     created_at = models.DateTimeField(auto_now_add=True)
+    is_wallpaper = models.BooleanField(default=False)
 
 class Review(models.Model):
     review_owner = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, null=False, blank=False)

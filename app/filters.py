@@ -8,6 +8,7 @@ class HousingFilter(django_filters.FilterSet):
     price_max = django_filters.NumberFilter(field_name='price', lookup_expr='lte', label="Search price max")
     country = django_filters.CharFilter(field_name='country', lookup_expr='iconatains', label="Search country")
     city = django_filters.CharFilter(field_name="city", lookup_expr="icontains", label="Search city")
+    type = django_filters.CharFilter(field_name="type__name", lookup_expr="exact", label="Search type")
 
     class Meta:
         model = Housing

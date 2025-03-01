@@ -153,7 +153,7 @@ REST_FRAMEWORK = {
     )
 }
 
-
+CELERY_IMPORTS = ("app.tasks", "account.tasks")
 CELERY_BROKER_URL = "redis://airbnb_redis:6379/0"
 CELERY_RESULT_BACKEND = "redis://airbnb_redis:6379/0"
 CELERY_ACCEPT_CONTENT = ['application/json']
