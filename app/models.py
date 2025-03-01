@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.core.validators import FileExtensionValidator
 from django.db import models
+from .storage import HousingStorage
 
 def upload_location(instance, filename):
     return f"{instance.name}_{filename}"
@@ -26,7 +27,7 @@ class TypeOfHousing(models.Model):
 
 class HousingPhotos(models.Model):
     housing = models.ForeignKey(Housing, on_delete=models.CASCADE)
-    photo = models.ImageField(upload_to=upload_location, null=False, blank=False, validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])])
+    photo = models.ImageField(upload_to=upload_location, null=False, blank=False, validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp'])], storage=HousingStorage())
     created_at = models.DateTimeField(auto_now_add=True)
 
 class Review(models.Model):
