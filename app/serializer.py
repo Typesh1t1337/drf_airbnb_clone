@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from app.models import Housing, Favorites, Review
+from app.models import Housing, Favorites, Review, HousingPhotos
 
 
 class HousingSerializer(serializers.ModelSerializer):
@@ -47,3 +47,23 @@ class ReviewSerializer(serializers.Serializer):
     rating = serializers.FloatField(required=True)
     text = serializers.CharField(required=True)
 
+class ReviewRetrieveSerializer(serializers.ModelSerializer):
+    review_owner = serializers.CharField(source="review_owner.username")
+    related_to = serializers.CharField(source="related_to.name")
+    class Meta:
+        model = Review
+        fields = ["review_rating", "review_owner", "related_to", "review_date", "review_text"]
+
+
+
+class HousingImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HousingPhotos
+        fields = ['image', 'is_wallpaper']
+
+
+class AddHousingSerializer(serializers.ModelSerializer):
+    images = HousingImageSerializer(many=True, required=False)
+    class Meta:
+        model = Housing
+        fields = ['images', 'name', 'description', 'address', 'city', 'country', 'price', 'option', 'type']
