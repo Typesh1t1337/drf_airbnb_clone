@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from app.models import Housing, Favorites, Review, HousingPhotos
-
+from .tasks import upload_photos
 
 class HousingSerializer(serializers.ModelSerializer):
     owner_username = serializers.CharField(source='owner.username')
@@ -56,14 +56,50 @@ class ReviewRetrieveSerializer(serializers.ModelSerializer):
 
 
 
-class HousingImageSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = HousingPhotos
-        fields = ['image', 'is_wallpaper']
+def image_validator(file):
+    ALLOWED_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp"]
+    MAX_FILE_SIZE = 10 * 1024 * 1024
+
+    if file.size > MAX_FILE_SIZE:
+        raise serializers.ValidationError(
+            "File too large. Max allowed size is {}".format(MAX_FILE_SIZE)
+        )
+    if file.content_type not in ALLOWED_CONTENT_TYPES:
+        raise serializers.ValidationError(
+            "Content type must be one of {}".format(ALLOWED_CONTENT_TYPES)
+        )
+
+
+class HousingImageSerializer(serializers.Serializer):
+    photo = serializers.ImageField(required=True,validators=[image_validator])
 
 
 class AddHousingSerializer(serializers.ModelSerializer):
     images = HousingImageSerializer(many=True, required=False)
+
     class Meta:
         model = Housing
         fields = ['images', 'name', 'description', 'address', 'city', 'country', 'price', 'option', 'type']
+
+
+    def create(self, validated_data):
+        images_data = self.context['request'].data.getlist('images')
+
+        housing = Housing.objects.create(**validated_data)
+
+        saved_images = []
+
+
+
+        for i, image in enumerate(images_data):
+
+            saved_images.append(
+                {
+                    "photo": image.read(),
+                    "is_wallpaper": (i==0)
+                }
+            )
+
+        upload_photos.delay(housing.id, saved_images)
+
+        return housing

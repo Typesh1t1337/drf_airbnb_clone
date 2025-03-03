@@ -7,6 +7,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from .tasks import upload_photos
 
 from app.models import Housing, Favorites
 from .filters import HousingFilter
@@ -16,6 +17,7 @@ from .serializer import *
 class HousingPagination(PageNumberPagination):
     page_size = 30
     page_size_query_param = 'page_size'
+
 
 class RetrieveAllHousingView(generics.ListAPIView):
     permission_classes = [AllowAny]
@@ -32,7 +34,6 @@ class RetrieveAllHousingView(generics.ListAPIView):
             return Housing.objects.all().exclude(owner=user)
 
         return Housing.objects.all()
-
 
 
 class FavoritesView(APIView):
@@ -78,7 +79,6 @@ class FavoritesView(APIView):
         if data:
             return Response(data=data, status=status.HTTP_200_OK)
 
-
         favorites = Favorites.objects.filter(favorites_owner=user)
 
         if not favorites.exists():
@@ -91,7 +91,6 @@ class FavoritesView(APIView):
         cache.set(cache_key, serializer)
 
         return Response(serializer, status=status.HTTP_200_OK)
-
 
 
 class WriteReviewView(APIView):
@@ -113,7 +112,7 @@ class WriteReviewView(APIView):
                 return Response(
                     {
                         "message": f"Housing not founded by id: {housing_id} ."
-                    },status=status.HTTP_404_NOT_FOUND,
+                    }, status=status.HTTP_404_NOT_FOUND,
                 )
 
             review = Review.objects.filter(related_to=housing_obj, review_owner=user)
@@ -132,7 +131,6 @@ class WriteReviewView(APIView):
 
             housing_obj.save(update_fields=["rating_amount", "rated_people"])
 
-
             return Response(
                 {
                     "message": "Review added.",
@@ -147,6 +145,7 @@ class ReviewPagination(PageNumberPagination):
     page_size_query_param = 'page_size'
     page_query_param = 'page'
     max_page_size = 100
+
 
 class RetrieveReviewView(APIView):
     permission_classes = [AllowAny]
@@ -186,8 +185,8 @@ class RetrieveReviewView(APIView):
         except ValueError:
             return Response({
                 "message": "Invalid request"
-            },status=status.HTTP_400_BAD_REQUEST
-        )
+            }, status=status.HTTP_400_BAD_REQUEST
+            )
 
         cache_key = f"review_{housing_id}"
         cached_data = cache.get(cache_key)
@@ -205,10 +204,8 @@ class RetrieveReviewView(APIView):
         paginator = ReviewPagination()
         paginated_reviews = paginator.paginate_queryset(reviews.order_by('-review_date'), request)
 
-
         serializer = ReviewRetrieveSerializer(paginated_reviews, many=True).data
         pagination_request = paginator.get_paginated_response(serializer)
-
 
         cache.set(cache_key, pagination_request.data, timeout=600)
 
@@ -221,26 +218,16 @@ class AddHousingView(APIView):
     @swagger_auto_schema(
         responses={200: openapi.Response("Successful Response", HousingSerializer)},
     )
-    def post(self,request):
-        user = request.user
-        serializer = AddHousingSerializer(data=request.data)
-
+    def post(self, request):
+        serializer = AddHousingSerializer(data=request.data, context={"request": request})
+        print(request.data)
         if serializer.is_valid():
-            housing_obj = serializer.save(owner=user)
-
-            images = serializer.validated_data.get('images', [])
-
-
-            images_obj = [
-                HousingPhotos(housing=housing_obj, image=image['image'], is_wallpaper=image["is_wallpaper"]) for image in images
-            ]
-
-            HousingPhotos.objects.bulk_create(images_obj)
+            housing = serializer.save(owner=request.user)
 
             return Response(
                 {
                     "message": "Housing added.",
-                },status=status.HTTP_201_CREATED
+                }, status=status.HTTP_201_CREATED
             )
 
         return Response(

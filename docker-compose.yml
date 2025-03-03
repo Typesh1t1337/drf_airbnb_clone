@@ -70,6 +70,9 @@ services:
       MINIO_ROOT_USER: airbnb
       MINIO_ROOT_PASSWORD: airbnb_123
     command: server /data --console-address ":9001"
+    networks:
+      - default
+
 
 volumes:
   db_data:

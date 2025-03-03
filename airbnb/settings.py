@@ -180,17 +180,16 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = "offerkz.codesender@gmail.com"
 EMAIL_HOST_PASSWORD = "unra xahx pnzv jgrx"
 
-AWS_S3_ENDPOINT_URL = "http://172.22.0.3:9000"
-AWS_STORAGE_BUCKET_NAME = "airbnb"
+AWS_S3_ENDPOINT_URL = "http://172.19.0.3:9000"
+AWS_STORAGE_BUCKET_NAME = "housing"
 AWS_QUERYSTRING_AUTH = False
 AWS_S3_BUCKET_AUTH = False
 AWS_S3_USE_HTTPS = False
-AWS_S3_KEY_ID = "airbnb"
-AWS_S3_ACCESS_KEY = "airbnb_123"
+AWS_ACCESS_KEY_ID = "airbnb"
+AWS_SECRET_ACCESS_KEY = "airbnb_123"
 AWS_S3_ADDRESSING_STYLE = "path"
 AWS_FILE_OVERWRITE = False
 AWS_S3_SECURE_URLS = False
-AWS_S3_CUSTOM_DOMAIN = "http://127.0.0.1:9000"
 
 
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
