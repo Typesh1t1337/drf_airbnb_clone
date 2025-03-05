@@ -19,6 +19,7 @@ def upload_photos(housing_id, images_data) -> bool:
 
         file_path = storage.save(file_name, ContentFile(image_content))
         file_url = storage.url(file_path)
+        file_url = file_url.replace("aws", "127.0.0.1")
 
         HousingPhotos.objects.create(
             housing=housing_obj,
@@ -29,8 +30,4 @@ def upload_photos(housing_id, images_data) -> bool:
 
     return True
 
-
-@shared_task
-def add(x: int, y: int) -> int:
-    return x + y
 
