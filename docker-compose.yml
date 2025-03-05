@@ -53,8 +53,9 @@ services:
     command: celery -A airbnb worker --loglevel=info
     entrypoint: ["sh","/usr/src/app/entrypoint.sh"]
     depends_on:
-      - cache
+      - broker
       - db
+      - cache
     networks:
       - default
 
@@ -73,11 +74,25 @@ services:
     networks:
       - default
 
+  broker:
+    container_name: airbnb_rabbit
+    image: rabbitmq:management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: airbnb
+      RABBITMQ_DEFAULT_PASS: root
+    volumes:
+      - rabbit_data:/var/lib/rabbitmq
+    networks:
+      - default
 
 volumes:
   db_data:
   cache_data:
   minio_data:
+  rabbit_data:
 
 networks:
   default:

@@ -154,8 +154,8 @@ REST_FRAMEWORK = {
 }
 
 CELERY_IMPORTS = ("app.tasks", "account.tasks")
-CELERY_BROKER_URL = "redis://airbnb_redis:6379/0"
-CELERY_RESULT_BACKEND = "redis://airbnb_redis:6379/0"
+CELERY_BROKER_URL = "amqp://airbnb:root@broker:5672/"
+CELERY_RESULT_BACKEND = "rpc://"
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE

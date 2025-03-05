@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.db import models
+from .storage import HousingStorage
 
 class Housing(models.Model):
     name = models.CharField(max_length=100)
@@ -26,6 +27,13 @@ class HousingPhotos(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     is_wallpaper = models.BooleanField(default=False)
     owner = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, null=True)
+
+    def delete(self,*args, **kwargs):
+        if self.photo:
+            storage = HousingStorage()
+            storage.delete(self.photo)
+
+        super().delete(*args, **kwargs)
 
 class Review(models.Model):
     review_owner = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, null=False, blank=False)

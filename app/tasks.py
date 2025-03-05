@@ -28,3 +28,9 @@ def upload_photos(housing_id, images_data) -> bool:
         )
 
     return True
+
+
+@shared_task
+def add(x: int, y: int) -> int:
+    return x + y
+
