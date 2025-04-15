@@ -1,4 +1,6 @@
 from django.core.cache import cache
+from django.db.models import OuterRef, Subquery, Exists, Count, Prefetch
+from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -7,9 +9,6 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .tasks import upload_photos
-
-from app.models import Housing, Favorites
 from .filters import HousingFilter
 from .serializer import *
 
@@ -24,16 +23,30 @@ class RetrieveAllHousingView(generics.ListAPIView):
     pagination_class = HousingPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     queryset = Housing.objects.all()
-    order_by = ["-created_at"]
     serializer_class = HousingSerializer
     filterset_class = HousingFilter
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_authenticated:
-            return Housing.objects.all().exclude(owner=user)
+        wallpaper_photo = HousingPhotos.objects.filter(
+            housing=OuterRef('pk'),
+            is_wallpaper=True,
+        ).values("photo")[:1]
 
-        return Housing.objects.all()
+        basic_queryset = Housing.objects.all().select_related("owner").annotate(
+            wallpaper=Subquery(wallpaper_photo)
+        ).order_by("-created_at")
+
+        if user.is_authenticated:
+            is_favorite = Favorites.objects.filter(
+                favorites_owner=user,
+                favorites_housing=OuterRef('pk'),
+            )
+            return basic_queryset.annotate(
+                is_favorite=Exists(is_favorite)
+            ).exclude(owner=user)
+
+        return basic_queryset
 
 
 class FavoritesView(APIView):
@@ -65,10 +78,39 @@ class FavoritesView(APIView):
             return Response(
                 {
                     "message": "Favorites added.",
-                }, status=status.HTTP_201_CREATED
+                }, status=status.HTTP_200_OK
             )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request):
+        user = request.user
+        cache_key = f"favorites_{user.username}"
+
+        housing_id = request.query_params.get('housing_id', None)
+
+        if not housing_id:
+            return Response(
+                {
+                    "message": "Housing ID not provided."
+                }, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        favorite = Favorites.objects.filter(
+            favorites_housing_id=housing_id, favorites_owner=user
+        )
+
+        if not favorite.exists():
+            return Response({
+                "message": "Favorites not added.",
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        favorite.delete()
+        cache.delete(cache_key)
+
+        return Response({
+            "message": "Favorites deleted.",
+        }, status=status.HTTP_200_OK)
 
     def get(self, request):
         user = request.user
@@ -79,7 +121,11 @@ class FavoritesView(APIView):
         if data:
             return Response(data=data, status=status.HTTP_200_OK)
 
-        favorites = Favorites.objects.filter(favorites_owner=user)
+        wallpapers = HousingPhotos.objects.filter(is_wallpaper=True)
+
+        favorites = ((Favorites.objects.filter(favorites_owner=user).
+                     select_related("favorites_housing", "favorites_housing__type")).
+                     prefetch_related(Prefetch("favorites_housing__photos", queryset=wallpapers, to_attr="wallpaper_photo")))
 
         if not favorites.exists():
             return Response({
@@ -88,7 +134,7 @@ class FavoritesView(APIView):
 
         serializer = FavoritesListSerializer(favorites, many=True).data
 
-        cache.set(cache_key, serializer)
+        cache.set(cache_key, serializer, 600)
 
         return Response(serializer, status=status.HTTP_200_OK)
 
@@ -233,3 +279,22 @@ class AddHousingView(APIView):
         return Response(
             serializer.errors, status=status.HTTP_400_BAD_REQUEST
         )
+
+
+class HousingDetailView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, pk):
+        reviews = Prefetch("reviews", queryset=Review.objects.order_by("-review_date")[:3], to_attr="housing_reviews")
+        housing = get_object_or_404(Housing.objects.prefetch_related('photos', reviews).annotate(review_amount=Count("reviews")), pk=pk)
+        cache_key = f"housing_{housing.id}"
+
+        if cache.get(cache_key):
+            return Response(data=cache.get(cache_key), status=status.HTTP_200_OK)
+
+        serializer = HousingDetailsSerializer(housing)
+
+        cache.set(cache_key, serializer.data, timeout=600)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+

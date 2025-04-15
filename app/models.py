@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.db import models
 from .storage import HousingStorage
 
+
 class Housing(models.Model):
     name = models.CharField(max_length=100)
     owner = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
@@ -18,12 +19,14 @@ class Housing(models.Model):
     type = models.ForeignKey("TypeOfHousing", on_delete=models.CASCADE, null=False, blank=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
+
 class TypeOfHousing(models.Model):
     name = models.CharField(max_length=100)
 
+
 class HousingPhotos(models.Model):
-    housing = models.ForeignKey(Housing, on_delete=models.CASCADE)
-    photo = models.TextField(max_length=500,null=False)
+    housing = models.ForeignKey(Housing, on_delete=models.CASCADE, related_name='photos')
+    photo = models.TextField(max_length=500, null=False)
     created_at = models.DateTimeField(auto_now_add=True)
     is_wallpaper = models.BooleanField(default=False)
     owner = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, null=True)
@@ -35,12 +38,13 @@ class HousingPhotos(models.Model):
 
         super().delete(*args, **kwargs)
 
+
 class Review(models.Model):
     review_owner = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, null=False, blank=False)
     review_text = models.TextField(null=False, blank=False)
     review_date = models.DateField(null=False, blank=False, auto_now=True)
     review_rating = models.IntegerField(null=False, blank=False)
-    related_to = models.ForeignKey(Housing, on_delete=models.CASCADE, null=False, blank=False)
+    related_to = models.ForeignKey(Housing, on_delete=models.CASCADE, null=False, blank=False, related_name='reviews')
 
 
 class Favorites(models.Model):

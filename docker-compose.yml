@@ -15,6 +15,7 @@ services:
     depends_on:
       - cache
       - db
+      - aws
     networks:
       - default
 
@@ -56,6 +57,7 @@ services:
       - broker
       - db
       - cache
+      - aws
     networks:
       - default
 

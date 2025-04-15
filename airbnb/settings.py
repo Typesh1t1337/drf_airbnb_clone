@@ -12,25 +12,21 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 from datetime import timedelta
 from pathlib import Path
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-a@xwgesll+c5gk9y+)nta6cw5&01yn+z4dbauu6d4*7j&-n1bm"
 
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost", "0.0.0.0"]
+ALLOWED_HOSTS = ["127.0.0.1", "192.168.0.106", "0.0.0.0"]
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    "corsheaders",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -40,7 +36,6 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "drf_yasg",
-    "corsheaders",
     "storages",
     "app.apps.AppConfig",
     "account.apps.AccountConfig",
@@ -130,8 +125,8 @@ STATIC_URL = "static/"
 REST_USE_JWT = True
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
     "ROTATE_REFRESH_TOKENS": False,
     "BLACKLIST_AFTER_ROTATION": True,
     "ALGORITHM": "HS256",
@@ -143,7 +138,7 @@ SIMPLE_JWT = {
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "account.dependencies.CustomJWTAuth",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
@@ -173,6 +168,14 @@ CACHES = {
     }
 }
 
+CORS_ALLOWED_ORIGINS = [
+    "http://127.0.0.1:5173",
+    "http://192.168.0.106:5173",
+]
+
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_METHODS = ["GET", "POST", "DELETE", "OPTIONS"]
+
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
@@ -180,7 +183,7 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = "offerkz.codesender@gmail.com"
 EMAIL_HOST_PASSWORD = "unra xahx pnzv jgrx"
 
-AWS_S3_ENDPOINT_URL = "http://172.19.0.3:9000"
+AWS_S3_ENDPOINT_URL = "http://172.22.0.3:9000"
 AWS_STORAGE_BUCKET_NAME = "housing"
 AWS_QUERYSTRING_AUTH = False
 AWS_S3_BUCKET_AUTH = False
