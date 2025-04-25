@@ -1,3 +1,4 @@
+from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.db.models import OuterRef, Subquery, Exists, Count, Prefetch
 from django.shortcuts import get_object_or_404
@@ -10,6 +11,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .filters import HousingFilter
+from .tasks import book_notification_email
 from .serializer import *
 
 
@@ -177,6 +179,9 @@ class WriteReviewView(APIView):
 
             housing_obj.save(update_fields=["rating_amount", "rated_people"])
 
+            if cache.get(f"review_{housing_id}"):
+                cache.delete(f"review_{housing_id}")
+
             return Response(
                 {
                     "message": "Review added.",
@@ -216,7 +221,6 @@ class RetrieveReviewView(APIView):
         responses={200: openapi.Response("Successful Response", ReviewRetrieveSerializer(many=True))}
     )
     def get(self, request):
-
         housing_id = request.query_params.get('housing_id', None)
 
         if not housing_id:
@@ -240,22 +244,18 @@ class RetrieveReviewView(APIView):
         if cached_data:
             return Response(data=cached_data, status=status.HTTP_200_OK)
 
-        reviews = Review.objects.filter(related_to_id=housing_id)
+        reviews = Review.objects.filter(related_to_id=housing_id).select_related("review_owner").order_by("-review_date")
 
         if not reviews.exists():
             return Response({
                 "message": "No reviews found.",
             }, status=status.HTTP_404_NOT_FOUND)
 
-        paginator = ReviewPagination()
-        paginated_reviews = paginator.paginate_queryset(reviews.order_by('-review_date'), request)
+        serializer = ReviewRetrieveSerializer(reviews, many=True).data
 
-        serializer = ReviewRetrieveSerializer(paginated_reviews, many=True).data
-        pagination_request = paginator.get_paginated_response(serializer)
+        cache.set(cache_key, serializer, timeout=600)
 
-        cache.set(cache_key, pagination_request.data, timeout=600)
-
-        return pagination_request
+        return Response(serializer, status=status.HTTP_200_OK)
 
 
 class AddHousingView(APIView):
@@ -265,16 +265,21 @@ class AddHousingView(APIView):
         responses={200: openapi.Response("Successful Response", HousingSerializer)},
     )
     def post(self, request):
+        user = request.user
         serializer = AddHousingSerializer(data=request.data, context={"request": request})
-        print(request.data)
+        cache_key = f"housings_{user.username}"
+
         if serializer.is_valid():
             housing = serializer.save(owner=request.user)
 
             return Response(
                 {
-                    "message": "Housing added.",
+                    "housing_id": housing.id,
                 }, status=status.HTTP_201_CREATED
             )
+
+        if cache.get(cache_key):
+            cache.delete(cache_key)
 
         return Response(
             serializer.errors, status=status.HTTP_400_BAD_REQUEST
@@ -286,7 +291,7 @@ class HousingDetailView(APIView):
 
     def get(self, request, pk):
         reviews = Prefetch("reviews", queryset=Review.objects.order_by("-review_date")[:3], to_attr="housing_reviews")
-        housing = get_object_or_404(Housing.objects.prefetch_related('photos', reviews).annotate(review_amount=Count("reviews")), pk=pk)
+        housing = get_object_or_404(Housing.objects.prefetch_related('photos', reviews).select_related("owner").annotate(review_amount=Count("reviews")), pk=pk)
         cache_key = f"housing_{housing.id}"
 
         if cache.get(cache_key):
@@ -294,7 +299,93 @@ class HousingDetailView(APIView):
 
         serializer = HousingDetailsSerializer(housing)
 
-        cache.set(cache_key, serializer.data, timeout=600)
+        cache.set(cache_key, serializer.data, 600)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class UserHousingsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, username):
+        user = get_object_or_404(get_user_model(), username=username)
+        cache_key = f"housings_{username}"
+
+        if cache.get(cache_key):
+            return Response(cache.get(cache_key), status=status.HTTP_200_OK)
+
+        wallpaper = HousingPhotos.objects.filter(is_wallpaper=True)
+        my_housings = (Housing.objects.
+                       filter(owner=user).
+                       select_related("type").
+                       prefetch_related(Prefetch("photos", queryset=wallpaper, to_attr="wallpaper_photo")))
+
+        serializer = UserHousingsSerializer(my_housings, many=True).data
+
+        cache.set(cache_key, serializer, 600)
+
+        return Response(serializer, status=status.HTTP_200_OK)
+
+
+class HousingBookView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+
+        serializer = HousingBookSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        housing_id = serializer.validated_data["housing_id"]
+        check_in = serializer.validated_data["check_in"]
+        check_out = serializer.validated_data["check_out"]
+        guests_amount = serializer.validated_data["guests_amount"]
+        bill = serializer.validated_data["bill"]
+
+        overlapping = Booking.objects.filter(owner=user, housing_id=housing_id, check_in_date__lt=check_out, check_out_date__gt=check_in).exists()
+
+        if overlapping:
+            return Response(
+                {
+                    "message": "Housing booking already taken.",
+                }, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        booking = Booking.objects.create(owner=user, housing_id=housing_id, check_in_date=check_in, check_out_date=check_out, bill_to_pay=bill, guests_amount=guests_amount)
+
+        cache_key = f"user_bookings_{user.username}"
+
+        book_notification_email.delay(user_id=user.id, booking_id=booking.id)
+
+        if cache.get(cache_key):
+            cache.delete(cache_key)
+
+        return Response({
+            "message": "Housing booking successful.",
+        }, status=status.HTTP_200_OK)
+
+
+class UserBookingsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        cache_key = f"user_bookings_{user.username}"
+
+        if cache.get(cache_key):
+            return Response(cache.get(cache_key), status=status.HTTP_200_OK)
+
+        bookings = (Booking.objects.filter(owner=user)
+                    .select_related("housing")
+                    .prefetch_related(
+                    Prefetch("housing__photos", queryset=HousingPhotos.objects.filter(is_wallpaper=True), to_attr="wallpaper"))
+                    )
+
+        serializer = UserBookingSerializer(bookings, many=True).data
+        cache.set(cache_key, serializer, 600)
+
+        return Response(serializer, status=status.HTTP_200_OK)
 

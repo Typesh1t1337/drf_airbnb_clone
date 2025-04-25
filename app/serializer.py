@@ -1,14 +1,15 @@
 from rest_framework import serializers
+from app.models import Housing, Favorites, Review, HousingPhotos, Booking
 
-from app.models import Housing, Favorites, Review, HousingPhotos
-from .tasks import upload_photos
+ALLOWED_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp"]
+MAX_FILE_SIZE = 10 * 1024 * 1024
 
 
 class HousingSerializer(serializers.ModelSerializer):
     owner_username = serializers.CharField(source='owner.username')
     rating = serializers.SerializerMethodField()
     type_name = serializers.CharField(source='type.name')
-    wallpaper = serializers.CharField(read_only=True)
+    wallpaper = serializers.CharField()
     is_favorite = serializers.BooleanField(read_only=True)
 
     class Meta:
@@ -17,7 +18,7 @@ class HousingSerializer(serializers.ModelSerializer):
                   'address', 'city', 'country',
                   'price', 'option', 'rating', 'type_name', "wallpaper", "is_favorite", "name"]
 
-    def get_rating(self,obj):
+    def get_rating(self, obj):
         if obj.rating_amount == 0:
             return 0
 
@@ -47,7 +48,12 @@ class FavoritesListSerializer(serializers.ModelSerializer):
     def get_wallpaper_photo(self, obj):
         photos = getattr(obj.favorites_housing, "wallpaper_photo", [])
         if photos:
-            return photos[0].photo
+            photo_instance = photos[0]
+            if photo_instance.photo and photo_instance.photo.name:
+                try:
+                    return photo_instance.photo.url
+                except ValueError:
+                    return None
         return None
 
 
@@ -59,17 +65,28 @@ class ReviewSerializer(serializers.Serializer):
 
 class ReviewRetrieveSerializer(serializers.ModelSerializer):
     review_owner = serializers.CharField(source="review_owner.username")
+    review_owner_pfp = serializers.SerializerMethodField()
     related_to = serializers.CharField(source="related_to.name")
+    review_owner_date_join = serializers.SerializerMethodField()
 
     class Meta:
         model = Review
-        fields = ["review_rating", "review_owner", "related_to", "review_date", "review_text"]
+        fields = ["review_rating", "review_owner",
+                  "related_to", "review_date",
+                  "review_text", "review_owner_pfp",
+                  "review_owner_date_join"]
+
+    def get_review_owner_pfp(self, obj):
+        if obj.review_owner.pfp:
+            return obj.review_owner.pfp.url
+        else:
+            return None
+
+    def get_review_owner_date_join(self, obj):
+        return obj.review_owner.date_joined.strftime("%m-%d-%Y")
 
 
 def image_validator(file):
-    ALLOWED_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp"]
-    MAX_FILE_SIZE = 10 * 1024 * 1024
-
     if file.size > MAX_FILE_SIZE:
         raise serializers.ValidationError(
             "File too large. Max allowed size is {}".format(MAX_FILE_SIZE)
@@ -101,13 +118,14 @@ class AddHousingSerializer(serializers.ModelSerializer):
         for i, image in enumerate(images_data):
 
             saved_images.append(
-                {
-                    "photo": image.read(),
-                    "is_wallpaper": (i==0)
-                }
+               HousingPhotos(
+                   housing=housing,
+                   photo=image,
+                   is_wallpaper=(i == 0),
+               )
             )
 
-        upload_photos.delay(housing.id, saved_images)
+        HousingPhotos.objects.bulk_create(saved_images)
 
         return housing
 
@@ -121,18 +139,28 @@ class HousingPhotosSerializer(serializers.ModelSerializer):
 class ReviewsSerializer(serializers.ModelSerializer):
     review_owner = serializers.CharField(source="review_owner.username")
     review_date = serializers.SerializerMethodField()
+    review_owner_pfp = serializers.SerializerMethodField()
+
     class Meta:
         model = Review
-        fields = ['review_rating', 'review_owner', 'review_date', 'review_text']
+        fields = ['review_rating', 'review_owner', 'review_date', 'review_text', "review_owner_pfp"]
 
     def get_review_date(self, obj):
         return obj.review_date.strftime("%m/%d/%Y")
+
+    def get_review_owner_pfp(self, obj):
+        if obj.review_owner.pfp:
+            return obj.review_owner.pfp.url
+        else:
+            return None
 
 
 class HousingDetailsSerializer(serializers.ModelSerializer):
     photos = HousingPhotosSerializer(many=True, read_only=True)
     type = serializers.CharField(source="type.name")
     owner = serializers.CharField(source="owner.username")
+    owner_pfp = serializers.SerializerMethodField()
+    owner_date_join = serializers.SerializerMethodField()
     rating = serializers.SerializerMethodField()
     review_amount = serializers.IntegerField(read_only=True)
     housing_reviews = ReviewsSerializer(many=True, read_only=True)
@@ -140,11 +168,85 @@ class HousingDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Housing
         fields = ('id', 'name', 'description', 'address',
-                  'city', 'country', 'price', 'option', 'type',
-                  'owner', 'rating', "photos", "review_amount", "housing_reviews")
+                  'city', 'country', 'price', 'option', 'type', "owner_pfp", "owner_date_join",
+                  'owner', 'rating', "photos", "review_amount", "housing_reviews", "conveniences")
 
     def get_rating(self, obj):
         if obj.rating_amount == 0:
             return 0
 
         return round(obj.rating_amount / obj.rated_people, 2)
+
+    def get_owner_date_join(self, obj):
+        return obj.owner.date_joined.strftime("%m/%d/%Y")
+
+    def get_owner_pfp(self, obj):
+        if obj.owner.pfp:
+            return obj.owner.pfp.url
+        else:
+            return None
+
+
+class UserHousingsSerializer(serializers.ModelSerializer):
+    type = serializers.CharField(source="type.name")
+    wallpaper_photo = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Housing
+        fields = [
+            'id', 'name', 'description',
+            'address', 'city', 'country',
+            'price', 'option', 'type', "wallpaper_photo"
+        ]
+
+    def get_wallpaper_photo(self, obj):
+        photos = getattr(obj, "wallpaper_photo", [])
+        if photos:
+            photo_instance = photos[0]
+            if photo_instance.photo and photo_instance.photo.name:
+                try:
+                    return photo_instance.photo.url
+                except ValueError:
+                    return None
+        return None
+
+
+class HousingBookSerializer(serializers.Serializer):
+    housing_id = serializers.IntegerField()
+    check_in = serializers.DateField()
+    check_out = serializers.DateField()
+    guests_amount = serializers.IntegerField()
+    bill = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+
+class HousingBookDetailsSerializer(serializers.ModelSerializer):
+    rating = serializers.SerializerMethodField()
+    wallpaper = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Housing
+        fields = ('id', 'name', 'address', "city", "country", "wallpaper", "rating")
+
+    def get_rating(self, obj):
+        if obj.rating_amount == 0:
+            return 0
+
+        return round(obj.rating_amount / obj.rated_people, 2)
+
+    def get_wallpaper(self, obj):
+        wallpaper = getattr(obj, "wallpaper", None)
+        if wallpaper and wallpaper[0].photo:
+            return wallpaper[0].photo.url
+        return None
+
+
+class UserBookingSerializer(serializers.ModelSerializer):
+    housing = HousingBookDetailsSerializer()
+    booked_date = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Booking
+        fields = ["check_out_date", "check_in_date", "guests_amount", "bill_to_pay", "housing", "booked_date"]
+
+    def get_booked_date(self, obj):
+        return obj.created_at.strftime("%m-%d-%Y")

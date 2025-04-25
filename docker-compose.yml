@@ -16,6 +16,7 @@ services:
       - cache
       - db
       - aws
+      - broker
     networks:
       - default
 
@@ -63,7 +64,7 @@ services:
 
   aws:
     container_name: airbnb_minio
-    image: quay.io/minio/minio
+    image: minio/minio:latest
     ports:
       - "9000:9000"
       - "9001:9001"

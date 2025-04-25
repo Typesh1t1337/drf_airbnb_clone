@@ -3,10 +3,14 @@ from django.db import models
 from .storage import HousingStorage
 
 
+def housing_upload_location(instance, filename):
+    return f"{instance.pk}/{filename}"
+
+
 class Housing(models.Model):
     name = models.CharField(max_length=100)
     owner = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
-    description = models.TextField(null=False,blank=False)
+    description = models.TextField(null=False, blank=False)
     address = models.CharField(max_length=150)
     city = models.CharField(max_length=100)
     country = models.CharField(max_length=100)
@@ -18,6 +22,7 @@ class Housing(models.Model):
     ), null=False, blank=False)
     type = models.ForeignKey("TypeOfHousing", on_delete=models.CASCADE, null=False, blank=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    conveniences = models.TextField(null=False, blank=False)
 
 
 class TypeOfHousing(models.Model):
@@ -26,12 +31,11 @@ class TypeOfHousing(models.Model):
 
 class HousingPhotos(models.Model):
     housing = models.ForeignKey(Housing, on_delete=models.CASCADE, related_name='photos')
-    photo = models.TextField(max_length=500, null=False)
+    photo = models.ImageField(upload_to=housing_upload_location, null=True, blank=True, storage=HousingStorage())
     created_at = models.DateTimeField(auto_now_add=True)
     is_wallpaper = models.BooleanField(default=False)
-    owner = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, null=True)
 
-    def delete(self,*args, **kwargs):
+    def delete(self, *args, **kwargs):
         if self.photo:
             storage = HousingStorage()
             storage.delete(self.photo)
@@ -50,3 +54,21 @@ class Review(models.Model):
 class Favorites(models.Model):
     favorites_owner = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, null=False, blank=False)
     favorites_housing = models.ForeignKey(Housing, on_delete=models.CASCADE, null=False, blank=False)
+
+
+class Booking(models.Model):
+    owner = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, null=False, blank=False)
+    housing = models.ForeignKey(Housing, on_delete=models.CASCADE, null=False, blank=False)
+    check_in_date = models.DateField(null=False, blank=False)
+    check_out_date = models.DateField(null=False, blank=False)
+    guests_amount = models.IntegerField(null=False, blank=False, default=1)
+    bill_to_pay = models.DecimalField(max_digits=10, decimal_places=2,null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['owner', 'housing', 'check_in_date', 'check_out_date'],
+                name='unique_booking'
+            )
+        ]

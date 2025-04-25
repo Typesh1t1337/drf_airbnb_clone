@@ -1,33 +1,37 @@
 from celery import shared_task
-from django.core.files.base import ContentFile
+from django.contrib.auth import get_user_model
+from django.core.mail import EmailMessage
+from django.template.loader import render_to_string
 
-from app.models import Housing,HousingPhotos
-from .storage import HousingStorage
-import uuid
-import hashlib
+from airbnb.settings import EMAIL_HOST_USER
+from .models import Booking
 
 
 @shared_task
-def upload_photos(housing_id, images_data) -> bool:
-    print(images_data)
-    storage = HousingStorage()
-    housing_obj = Housing.objects.get(pk=housing_id)
-    for image in images_data:
-        image_content = image['photo']
-        unique_hash = hashlib.md5(image_content).hexdigest()[:10]
-        file_name = f"{housing_id}/{unique_hash}.jpg"
+def book_notification_email(user_id: int, booking_id: int) -> bool:
+    user = get_user_model().objects.get(pk=user_id)
+    subject = "Booking Notification"
+    recipient_email = [user.email]
 
-        file_path = storage.save(file_name, ContentFile(image_content))
-        file_url = storage.url(file_path)
-        file_url = file_url.replace("aws", "127.0.0.1")
+    booking = Booking.objects.select_related("housing").get(id=booking_id)
+    information_text = f"Hi there {user.first_name}, The booking of {booking.housing.name} has been completed. Have a nice trip!"
 
-        HousingPhotos.objects.create(
-            housing=housing_obj,
-            photo=file_url,
-            owner=housing_obj.owner,
-            is_wallpaper=image['is_wallpaper'],
-        )
+    credentials = {
+        "booking": booking,
+        "information_text": information_text
+    }
 
-    return True
+    html_content = render_to_string("email/notification.html", credentials)
+
+    try:
+        email_message = EmailMessage(subject, html_content, EMAIL_HOST_USER, recipient_email)
+        email_message.content_subtype = "html"
+        email_message.send()
+        return True
+    except Exception as e:
+        print(e)
+        return False
+
+
 
 

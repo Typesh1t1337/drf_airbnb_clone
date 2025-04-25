@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Booking Confirmation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f8;
+            color: #333;
+            padding: 40px;
+        }
+
+        .email-container {
+            max-width: 600px;
+            margin: auto;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+
+        h2 {
+            color: #1a73e8;
+        }
+
+        .info-text {
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+
+        .booking-details {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .booking-details th, .booking-details td {
+            text-align: left;
+            padding: 8px 12px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .footer {
+            margin-top: 30px;
+            font-size: 13px;
+            color: #888;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <h2>Booking Confirmed ✅</h2>
+        <p class="info-text">{{ information_text }}</p>
+
+        <table class="booking-details">
+            <tr>
+                <th>Housing:</th>
+                <td>{{ booking.housing.name }}</td>
+            </tr>
+            <tr>
+                <th>Location:</th>
+                <td>{{ booking.housing.address }}, {{ booking.housing.city }}, {{ booking.housing.country }}</td>
+            </tr>
+            <tr>
+                <th>Check-in:</th>
+                <td>{{ booking.check_in_date }}</td>
+            </tr>
+            <tr>
+                <th>Check-out:</th>
+                <td>{{ booking.check_out_date }}</td>
+            </tr>
+            <tr>
+                <th>Guests:</th>
+                <td>{{ booking.guests_amount }}</td>
+            </tr>
+            <tr>
+                <th>Total Price:</th>
+                <td>${{ booking.bill_to_pay }}</td>
+            </tr>
+        </table>
+
+        <div class="footer">
+            Thank you for booking with us. Have a wonderful trip!<br>
+            — Your Travel Team
+        </div>
+    </div>
+</body>
+</html>

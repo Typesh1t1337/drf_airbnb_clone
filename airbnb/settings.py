@@ -28,6 +28,7 @@ ALLOWED_HOSTS = ["127.0.0.1", "192.168.0.106", "0.0.0.0"]
 INSTALLED_APPS = [
     "corsheaders",
     "django.contrib.admin",
+    "django_prometheus",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -44,6 +45,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -52,6 +54,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "corsheaders.middleware.CorsMiddleware",
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 ROOT_URLCONF = "airbnb.urls"
@@ -148,7 +151,6 @@ REST_FRAMEWORK = {
     )
 }
 
-CELERY_IMPORTS = ("app.tasks", "account.tasks")
 CELERY_BROKER_URL = "amqp://airbnb:root@broker:5672/"
 CELERY_RESULT_BACKEND = "rpc://"
 CELERY_ACCEPT_CONTENT = ['application/json']
@@ -183,7 +185,7 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = "offerkz.codesender@gmail.com"
 EMAIL_HOST_PASSWORD = "unra xahx pnzv jgrx"
 
-AWS_S3_ENDPOINT_URL = "http://172.22.0.3:9000"
+AWS_S3_ENDPOINT_URL = "http://aws:9000"
 AWS_STORAGE_BUCKET_NAME = "housing"
 AWS_QUERYSTRING_AUTH = False
 AWS_S3_BUCKET_AUTH = False
@@ -193,6 +195,6 @@ AWS_SECRET_ACCESS_KEY = "airbnb_123"
 AWS_S3_ADDRESSING_STYLE = "path"
 AWS_FILE_OVERWRITE = False
 AWS_S3_SECURE_URLS = False
-
+SECURE_SSL_REDIRECT = False
 
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
