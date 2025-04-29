@@ -1,3 +1,4 @@
+from datetime import date
 from rest_framework import serializers
 from app.models import Housing, Favorites, Review, HousingPhotos, Booking
 
@@ -215,7 +216,6 @@ class HousingBookSerializer(serializers.Serializer):
     housing_id = serializers.IntegerField()
     check_in = serializers.DateField()
     check_out = serializers.DateField()
-    guests_amount = serializers.IntegerField()
     bill = serializers.DecimalField(max_digits=10, decimal_places=2)
 
 
@@ -243,10 +243,56 @@ class HousingBookDetailsSerializer(serializers.ModelSerializer):
 class UserBookingSerializer(serializers.ModelSerializer):
     housing = HousingBookDetailsSerializer()
     booked_date = serializers.SerializerMethodField()
+    date_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Booking
-        fields = ["check_out_date", "check_in_date", "guests_amount", "bill_to_pay", "housing", "booked_date"]
+        fields = ["id", "check_out_date", "check_in_date", "guests_amount", "bill_to_pay", "housing", "booked_date", "date_status", "status"]
 
     def get_booked_date(self, obj):
         return obj.created_at.strftime("%m-%d-%Y")
+
+    def get_date_status(self, obj):
+        current_time = date.today()
+        if obj.check_out_date > current_time:
+            return True
+        else:
+            return False
+
+
+class DeleteBookingSerializer(serializers.Serializer):
+    booking_id = serializers.IntegerField()
+
+
+class HousingReservationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Housing
+        fields = ["id", "name", "country", "city", "address"]
+
+
+class MyHousingReservationSerializer(serializers.ModelSerializer):
+    owner = serializers.CharField(source="owner.username")
+    first_name = serializers.CharField(source="owner.first_name")
+    last_name = serializers.CharField(source="owner.last_name")
+    email = serializers.CharField(source="owner.email")
+    housing = HousingReservationSerializer()
+    booked_date = serializers.SerializerMethodField()
+    date_status = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Booking
+        fields = ["id", "owner", "check_out_date",
+                  "check_in_date", "guests_amount", "bill_to_pay",
+                  "booked_date", "status", "date_status",
+                  "housing", "first_name", "last_name", "email"
+                  ]
+
+    def get_booked_date(self, obj):
+        return obj.created_at.strftime("%m-%d-%Y")
+
+    def get_date_status(self, obj):
+        current_time = date.today()
+        if obj.check_out_date > current_time:
+            return True
+        else:
+            return False

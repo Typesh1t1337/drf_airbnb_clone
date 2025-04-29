@@ -33,5 +33,26 @@ def book_notification_email(user_id: int, booking_id: int) -> bool:
         return False
 
 
+@shared_task
+def email_finished_notification(user_id: int, booking_id: int) -> bool:
+    user = get_user_model().objects.get(pk=user_id)
+    subject = "Booking Notification"
+    recipient_email = [user.email]
 
+    booking = Booking.objects.select_related("housing").get(id=booking_id)
+    information = f"Hello {user.first_name}, we are delighted to say that your trip has been completed. Housing owner and our company will be exited to know your impression about housing!"
+    credentials = {
+        "booking": booking,
+        "information": information
+    }
 
+    html_content = render_to_string("email/finished.html", credentials)
+
+    try:
+        email_message = EmailMessage(subject, html_content, EMAIL_HOST_USER, recipient_email)
+        email_message.content_subtype = "html"
+        email_message.send()
+        return True
+    except Exception as e:
+        print(e)
+        return False

@@ -62,8 +62,9 @@ class Booking(models.Model):
     check_in_date = models.DateField(null=False, blank=False)
     check_out_date = models.DateField(null=False, blank=False)
     guests_amount = models.IntegerField(null=False, blank=False, default=1)
-    bill_to_pay = models.DecimalField(max_digits=10, decimal_places=2,null=True)
+    bill_to_pay = models.DecimalField(max_digits=10, decimal_places=2, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(choices=[("Booked", "booked"), ("Finished", "finished"), ("reviewed", "Reviewed")], null=False, blank=False, default="Booked")
 
     class Meta:
         constraints = [

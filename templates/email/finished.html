@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Finished Notification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f8f8;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .header {
+            background-color: #ff385c;
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            margin-top: 20px;
+        }
+        .content p {
+            font-size: 16px;
+            line-height: 1.5;
+            color: #333;
+        }
+        .content p.bold {
+            font-weight: bold;
+        }
+        .footer {
+            margin-top: 40px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            text-align: center;
+            font-size: 14px;
+            color: #888;
+            border-radius: 0 0 8px 8px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #ff385c;
+            color: #fff;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-top: 20px;
+        }
+        .button:hover {
+            background-color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Booking Completed</h1>
+        </div>
+        <div class="content">
+            <p>Hello <strong>{{ user.first_name }}</strong>,</p>
+            <p>{{ information }}</p>
+            <p>We would love to hear your thoughts about the place! Please feel free to leave your review. Your feedback is important to both the housing owner and us.</p>
+            <p class="bold">Booking Details:</p>
+            <p>Housing: {{ booking.housing.name }} - {{ booking.housing.city }}, {{ booking.housing.country }}</p>
+            <p>Check-in: {{ booking.check_in_date }} | Check-out: {{ booking.check_out_date }}</p>
+            <p>Guests: {{ booking.guests_amount }}</p>
+
+            <a href="http://127.0.0.1:5173/bookings" class="button">Leave a Review</a>
+        </div>
+        <div class="footer">
+            <p>Thank you for using our service! <br> &copy; {{ current_year }} Your Company Name</p>
+        </div>
+    </div>
+</body>
+</html>

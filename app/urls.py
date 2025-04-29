@@ -1,8 +1,9 @@
 from django.urls import path
 from .views import (RetrieveAllHousingView, FavoritesView,
-                    WriteReviewView, HousingDetailView,
+                    WriteReviewView, HousingDetailView, MyHousingReservationsView,
                     RetrieveReviewView, AddHousingView, UserHousingsView,
-                    HousingBookView, UserBookingsView
+                    HousingBookView, UserBookingsView, RemoveBookingView,
+                    ConfirmCheckingOutView
                     )
 
 urlpatterns = [
@@ -14,5 +15,8 @@ urlpatterns = [
     path("housing/detail/<int:pk>/", HousingDetailView.as_view()),
     path("housing/user/<str:username>/", UserHousingsView.as_view()),
     path("booking/book/", HousingBookView.as_view()),
-    path("booking/list/", UserBookingsView.as_view())
+    path("booking/list/", UserBookingsView.as_view()),
+    path("booking/delete/<int:pk>/", RemoveBookingView.as_view()),
+    path("booking/manage/", MyHousingReservationsView.as_view()),
+    path("booking/confirm/<int:pk>/", ConfirmCheckingOutView.as_view()),
 ]
