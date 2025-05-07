@@ -36,7 +36,6 @@ def email_verification(email: str) -> bool:
 def reset_password(email: str, digit_code: int) -> bool:
     subject = "Reset password code"
     recipient_list = [email]
-    digit_code = random.randint(100000, 999999)
 
     credentials = {
         "code": digit_code,
