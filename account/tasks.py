@@ -31,3 +31,22 @@ def email_verification(email: str) -> bool:
 
     return True
 
+
+@shared_task
+def reset_password(email: str, digit_code: int) -> bool:
+    subject = "Reset password code"
+    recipient_list = [email]
+    digit_code = random.randint(100000, 999999)
+
+    credentials = {
+        "code": digit_code,
+    }
+
+    html_content = render_to_string("email/password_reset.html", credentials)
+
+    email_message = EmailMessage(subject, html_content, EMAIL_HOST_USER, recipient_list)
+    email_message.content_subtype = "html"
+    email_message.send()
+
+    return True
+

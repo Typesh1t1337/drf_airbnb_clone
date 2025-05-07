@@ -254,10 +254,7 @@ class UserBookingSerializer(serializers.ModelSerializer):
 
     def get_date_status(self, obj):
         current_time = date.today()
-        if obj.check_out_date > current_time:
-            return True
-        else:
-            return False
+        return obj.check_out_date > current_time
 
 
 class DeleteBookingSerializer(serializers.Serializer):

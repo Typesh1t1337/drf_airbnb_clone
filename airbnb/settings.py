@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "storages",
     "app.apps.AppConfig",
     "account.apps.AccountConfig",
+    "admin.apps.AdminConfig",
     "django_celery_beat",
     "django_filters",
 ]

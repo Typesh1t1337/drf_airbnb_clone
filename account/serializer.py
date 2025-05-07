@@ -55,3 +55,17 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+
+class VerifyEmailSerializer(serializers.Serializer):
+    code = serializers.CharField()
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=False)
+
+
+class ResetPasswordConfirmSerializer(serializers.Serializer):
+    password = serializers.CharField(min_length=6)
+    code = serializers.CharField(min_length=6)
+    email = serializers.EmailField(required=True)
+
