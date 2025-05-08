@@ -1,5 +1,5 @@
 import random
-from django.contrib.auth import authenticate, r
+from django.contrib.auth import authenticate
 from django.core.cache import cache
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -10,6 +10,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .serializer import *
 from .tasks import email_verification, reset_password
 from datetime import timedelta, datetime
+from .permissions import IsNotBanned
 
 
 class RegisterView(APIView):
@@ -44,7 +45,8 @@ class RegisterView(APIView):
 
         response = Response({
             "status": user.is_verified,
-            "username": user.username
+            "username": user.username,
+            "is_staff": user.is_staff,
         }, status=status.HTTP_201_CREATED)
 
         response.set_cookie(
@@ -85,13 +87,20 @@ class LoginView(APIView):
                 'error': 'Invalid credentials'
             }, status=status.HTTP_401_UNAUTHORIZED)
 
+        if user.is_banned:
+            return Response({
+                'error': 'User is banned',
+                "is_banned": True,
+            }, status=status.HTTP_403_FORBIDDEN)
+
         refresh = RefreshToken.for_user(user)
         access = str(refresh.access_token)
 
         response = Response(
             {
                 "status": user.is_verified,
-                "username": user.username
+                "username": user.username,
+                "is_staff": user.is_staff,
             }, status=status.HTTP_200_OK
         )
 
@@ -115,7 +124,7 @@ class LoginView(APIView):
 
 
 class UserInfoView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsNotBanned]
 
     def get(self, request, username):
         cache_key = f"user_{username}"
@@ -134,7 +143,7 @@ class UserInfoView(APIView):
 
 
 class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsNotBanned]
 
     def post(self, request):
         response = Response(
@@ -150,7 +159,7 @@ class LogoutView(APIView):
 
 
 class EditProfileView(APIView):
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, IsNotBanned,)
 
     def put(self, request):
         user = request.user
@@ -169,7 +178,7 @@ class EditProfileView(APIView):
 
 
 class VerificationSessionView(APIView):
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, IsNotBanned,)
 
     def get(self, request):
         user = request.user
@@ -193,8 +202,34 @@ class VerificationSessionView(APIView):
         )
 
 
+class SendNewCodeView(APIView):
+    permission_classes = (IsAuthenticated, IsNotBanned,)
+
+    def post(self, request):
+        user = request.user
+
+        if user.is_verified:
+            return Response({
+                "status": "User is already verified",
+            }, status=status.HTTP_401_UNAUTHORIZED)
+
+        cache_key = f"user_email_{user.username}"
+        if cache.get(cache_key):
+            return Response({
+                "status": "We already sent a code, so try to send it later",
+            })
+
+        email_verification.delay(user.email)
+        date_now = {"time_left": datetime.now()}
+        cache.set(cache_key, date_now, 15*60)
+
+        return Response({
+            "status": "Success",
+        }, status=status.HTTP_200_OK)
+
+
 class VerifyEmailView(APIView):
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, IsNotBanned,)
 
     def patch(self, request):
         user = request.user
@@ -209,7 +244,7 @@ class VerifyEmailView(APIView):
             return Response(
                 {
                     "status": "Deprecated code"
-                })
+                }, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = VerifyEmailSerializer(data=request.data)
         if not serializer.is_valid():
@@ -243,7 +278,7 @@ class SendPasswordCodeView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        email = serializer.data["email"]
+        email = serializer.validated_data.get('email')
         user = get_object_or_404(get_user_model(), email=email)
         if not user.is_verified:
             return Response(

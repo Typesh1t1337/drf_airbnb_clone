@@ -13,6 +13,7 @@ from rest_framework.views import APIView
 from .filters import HousingFilter
 from .tasks import book_notification_email, email_finished_notification
 from .serializer import *
+from account.permissions import IsNotBanned
 
 
 class HousingPagination(PageNumberPagination):
@@ -37,7 +38,7 @@ class RetrieveAllHousingView(generics.ListAPIView):
 
         basic_queryset = Housing.objects.all().select_related("owner").annotate(
             wallpaper=Subquery(wallpaper_photo)
-        ).order_by("-created_at")
+        ).order_by("-created_at").exclude(status=False)
 
         if user.is_authenticated:
             is_favorite = Favorites.objects.filter(
@@ -52,7 +53,7 @@ class RetrieveAllHousingView(generics.ListAPIView):
 
 
 class FavoritesView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsNotBanned]
 
     def post(self, request):
         user = request.user
@@ -142,7 +143,7 @@ class FavoritesView(APIView):
 
 
 class WriteReviewView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsNotBanned]
 
     def post(self, request):
         user = request.user
@@ -262,7 +263,7 @@ class RetrieveReviewView(APIView):
 
 
 class AddHousingView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsNotBanned]
 
     @swagger_auto_schema(
         responses={200: openapi.Response("Successful Response", HousingSerializer)},
@@ -308,7 +309,7 @@ class HousingDetailView(APIView):
 
 
 class UserHousingsView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsNotBanned]
 
     def get(self, request, username):
         user = get_object_or_404(get_user_model(), username=username)
@@ -331,7 +332,7 @@ class UserHousingsView(APIView):
 
 
 class HousingBookView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsNotBanned]
 
     def post(self, request):
         user = request.user
@@ -370,7 +371,7 @@ class HousingBookView(APIView):
 
 
 class UserBookingsView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsNotBanned]
 
     def get(self, request):
         user = request.user
@@ -393,7 +394,7 @@ class UserBookingsView(APIView):
 
 
 class RemoveBookingView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsNotBanned]
 
     def delete(self, request, pk):
         user = request.user
@@ -413,7 +414,7 @@ class RemoveBookingView(APIView):
 
 
 class MyHousingReservationsView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsNotBanned]
 
     def get(self, request):
         user = request.user
@@ -440,7 +441,7 @@ class MyHousingReservationsView(APIView):
 
 
 class ConfirmCheckingOutView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsNotBanned]
 
     def patch(self, request, pk):
         user = request.user

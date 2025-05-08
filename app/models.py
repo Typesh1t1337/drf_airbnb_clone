@@ -23,6 +23,7 @@ class Housing(models.Model):
     type = models.ForeignKey("TypeOfHousing", on_delete=models.CASCADE, null=False, blank=False)
     created_at = models.DateTimeField(auto_now_add=True)
     conveniences = models.TextField(null=False, blank=False)
+    status = models.BooleanField(default=False)
 
 
 class TypeOfHousing(models.Model):

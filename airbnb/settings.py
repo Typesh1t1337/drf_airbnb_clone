@@ -27,7 +27,6 @@ ALLOWED_HOSTS = ["127.0.0.1", "192.168.0.106", "0.0.0.0"]
 
 INSTALLED_APPS = [
     "corsheaders",
-    "django.contrib.admin",
     "django_prometheus",
     "django.contrib.auth",
     "django.contrib.contenttypes",

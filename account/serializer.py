@@ -57,15 +57,15 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
 
 class VerifyEmailSerializer(serializers.Serializer):
-    code = serializers.CharField()
+    code = serializers.IntegerField()
 
 
 class ResetPasswordSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=False)
+    email = serializers.EmailField(required=True)
 
 
 class ResetPasswordConfirmSerializer(serializers.Serializer):
     password = serializers.CharField(min_length=6)
-    code = serializers.CharField(min_length=6)
+    code = serializers.IntegerField()
     email = serializers.EmailField(required=True)
 

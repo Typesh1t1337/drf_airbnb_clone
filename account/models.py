@@ -13,3 +13,4 @@ class User(AbstractUser):
     pfp = models.ImageField(upload_to=pfp_upload_location, storage=PFPStorage(), blank=True, null=True)
     last_verification = models.DateTimeField(null=True, blank=True)
     about_me = models.TextField(blank=True)
+    is_banned = models.BooleanField(default=False)
